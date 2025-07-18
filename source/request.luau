@@ -30,6 +30,7 @@ end
 
 function request.request(url: string, method: net.HttpMethod)
 	assert(apiKeyHeader, "no api key set")
+
 	return net.request({
 		url = url,
 		method = method,
@@ -37,26 +38,31 @@ function request.request(url: string, method: net.HttpMethod)
 	})
 end
 
-function request.retrieveRobloxModelSource(assetId: number, version: number?): (string, boolean)
+function request.retrieveRobloxModelSource(assetId: number, version: number?): (boolean, string, boolean)
 	local cacheKey = getCacheKey(assetId, version)
 
 	local cached = cache.get(cacheKey)
 	if cached then
-		return cached, true
+		return true, cached, true
 	end
 
 	local initialRequest = if version
 		then request.request(RETRIEVE_VERSIONED_ASSET_LINK:format(assetId, version), "GET")
 		else request.request(RETRIEVE_ASSET_LINK:format(assetId), "GET")
+	local decodedResponse = serde.decode("json", initialRequest.body)
+
+	if decodedResponse.errors and #decodedResponse.errors > 0 then
+		return false, decodedResponse.errors[1].message, false
+	end
 
 	local modelString = net.request({
-		url = serde.decode("json", initialRequest.body).location,
+		url = decodedResponse.location,
 		method = "GET",
 	}).body
 
 	cache.set(cacheKey, modelString)
 
-	return modelString, false
+	return true, modelString, false
 end
 
 function request.getLatestAssetVersion(assetId: number): number
