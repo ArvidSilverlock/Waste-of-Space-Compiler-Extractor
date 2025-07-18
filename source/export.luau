@@ -24,19 +24,39 @@ local function getExtension(object: roblox.Instance): string?
 		else EXTENSIONS.other
 end
 
-local function readAllPathsInDirectory(basePath, fileMap: { [string]: string }, relativePath: string)
-	local currentPath = `{basePath}/{relativePath}`
+local function splitPath(string: string): (string, string, string)
+	local path, fileName, extension = string:match("^(.-)([^/]-)(%.[^/%.]+)$")
+	return path :: string, fileName :: string, extension :: string
+end
 
-	for _, entry in (fs.readDir(currentPath)) do
-		local relPath = `{relativePath}/{entry}`
-		local fullPath = `{basePath}/{relPath}`
+local function readAllPaths(basePath, fileMap: { [string]: string }, relativePath: string?)
+	local currentPath = if relativePath then `{basePath}/{relativePath}` else basePath
 
-		if fs.isFile(fullPath) then
-			fileMap[relPath] = fs.readFile(fullPath)
-		elseif fs.isDir(fullPath) then
-			readAllPathsInDirectory(basePath, fileMap, relPath)
+	if fs.isFile(currentPath) then
+		local path, fileName, extension = splitPath(currentPath)
+		local subversionRemoved = fileName:match("(.-)%.%d+$") or fileName
+		local reconstructedPath = path .. subversionRemoved .. extension
+
+		fileMap[reconstructedPath] = fs.readFile(currentPath)
+	elseif fs.isDir(currentPath) then
+		for _, entry in fs.readDir(currentPath) do
+			local relPath = if relativePath then `{relativePath}/{entry}` else entry
+			local fullPath = `{basePath}/{relPath}`
+
+			if fs.isFile(fullPath) then
+				fileMap[relPath] = fs.readFile(fullPath)
+			elseif fs.isDir(fullPath) then
+				readAllPaths(basePath, fileMap, relPath)
+			end
 		end
 	end
+end
+
+function export.getPath(object: roblox.Instance, nameReplacement: string?)
+	local extension = if #object:GetChildren() == 0 then getExtension(object) else ""
+	local name = nameReplacement or object.Name
+
+	return if extension then name .. extension else name
 end
 
 function export.saveToPath(object: roblox.Instance, filePath: string)
@@ -47,7 +67,7 @@ function export.saveToPath(object: roblox.Instance, filePath: string)
 		if #children > 0 then
 			fs.writeDir(filePath)
 			for _, child in children do
-				export.saveToPath(child, `{filePath}/{child}`)
+				export.saveToPath(child, `{filePath}/{child.Name}`)
 			end
 
 			filePath ..= `/init{extension}`
@@ -67,11 +87,17 @@ function export.saveToPath(object: roblox.Instance, filePath: string)
 	end
 end
 
-function export.compareDirectories(directoryA, directoryB)
+function export.compare(pathA, pathB)
+	if fs.isFile(pathA) ~= fs.isFile(pathB) then
+		return false
+	elseif fs.isDir(pathA) ~= fs.isDir(pathB) then
+		return false
+	end
+
 	local mapA, mapB, allPaths = {}, {}, {}
 
-	readAllPathsInDirectory(directoryA, mapA, "")
-	readAllPathsInDirectory(directoryB, mapB, "")
+	readAllPaths(pathA, mapA)
+	readAllPaths(pathB, mapB)
 
 	for path in mapA do
 		allPaths[path] = true
