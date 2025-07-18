@@ -2,6 +2,7 @@ local process = require("@lune/process")
 local stdio = require("@lune/stdio")
 
 local CHECK_MARK = stdio.color("green") .. "✔" .. stdio.color("reset")
+local CROSS = stdio.color("red") .. "✗" .. stdio.color("reset")
 
 local MICROSECOND_FORMAT =
 	string.format("%s%%.2f %sµs%s", stdio.color("green"), stdio.style("dim"), stdio.color("reset"))
@@ -51,8 +52,13 @@ function output.error(errorType: Error): never
 	error("") -- this never runs, but it makes luau happy
 end
 
-function output.checkmark(text)
-	stdio.write(`{CHECK_MARK} {text}`)
+function output.checkmark(...: any)
+	output.write(CHECK_MARK, " ", ...)
+	return output
+end
+
+function output.cross(...: any)
+	output.write(CROSS, " ", ...)
 	return output
 end
 
