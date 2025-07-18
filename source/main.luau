@@ -141,4 +141,4 @@ output
 	.write(" compilers.\n\n")
 	.wrap("green", "Process completed in ")
 	.time(deduplicateEndTime - overallStartTime)
-	.write(".\n")
+	.wrap("green", ".\n")
