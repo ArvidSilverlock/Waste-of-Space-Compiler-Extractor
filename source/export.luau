@@ -24,11 +24,6 @@ local function getExtension(object: roblox.Instance): string?
 		else EXTENSIONS.other
 end
 
-local function splitPath(string: string): (string, string, string)
-	local path, fileName, extension = string:match("^(.-)([^/]-)(%.[^/%.]+)$")
-	return path :: string, fileName :: string, extension :: string
-end
-
 local function readAllPaths(basePath, fileMap: { [string]: string }, relativePath: string?)
 	local currentPath = if relativePath then `{basePath}/{relativePath}` else basePath
 
