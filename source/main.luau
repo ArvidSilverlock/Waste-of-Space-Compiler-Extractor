@@ -54,7 +54,7 @@ else
 end
 
 for index = OLDEST_SUPPORTED_VERSION, latestAssetVersion do
-	local versionText = stdio.color("yellow") .. stdio.style("bold") .. index .. stdio.style("reset")
+	local versionText = stdio.color("yellow") .. stdio.style("bold") .. "v" .. index .. stdio.style("reset")
 
 	local modelRetrieveStartTime = os.clock()
 	local modelSuccess, modelSource, didCache = request.retrieveRobloxModelSource(MB_TOOLS_PLUGIN_ID, index)
@@ -117,7 +117,7 @@ for index = OLDEST_SUPPORTED_VERSION, latestAssetVersion do
 			.write(" to ")
 			.wrap("green", "save")
 			.write(" compiler ")
-			.wrap("bold", "v", compiler.Name)
+			.wrap("bold", compiler.Name)
 			.write(".\n")
 	end
 
