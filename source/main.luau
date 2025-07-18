@@ -23,8 +23,8 @@ end
 local function removeFile(path: string)
 	if fs.isFile(path) then
 		fs.removeFile(path)
-	else
-		fs.readDir(path)
+	elseif fs.isDir(path) then
+		fs.removeDir(path)
 	end
 end
 
