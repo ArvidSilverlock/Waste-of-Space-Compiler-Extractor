@@ -11,15 +11,6 @@ local model = require("./model")
 local output = require("./output")
 local request = require("./request")
 
-local apiKey = if #process.args > 0 then process.args[1] else stdio.prompt("text", "Roblox API key")
-
-request.setApiKey(apiKey)
-request.setAssetCacheName(MB_TOOLS_PLUGIN_ID, "mbtools")
-
-local latestAssetVersion = request.getLatestAssetVersion(MB_TOOLS_PLUGIN_ID)
-
-local duplicatedCompilerIndexes = {}
-
 local function applyIndexToName(name: string, index)
 	local newCompilerName, replacementCount = name:gsub("(%.%d+)([^%d]-)$", `%1.{index}%2`)
 	if replacementCount == 0 then
@@ -29,18 +20,28 @@ local function applyIndexToName(name: string, index)
 	end
 end
 
+local function removeFile(path: string)
+	if fs.isFile(path) then
+		fs.removeFile(path)
+	else
+		fs.readDir(path)
+	end
+end
+
+local apiKey = if #process.args > 0 then process.args[1] else stdio.prompt("text", "Roblox API key")
+
+request.setApiKey(apiKey)
+request.setAssetCacheName(MB_TOOLS_PLUGIN_ID, "mbtools")
+
+local latestAssetVersion = request.getLatestAssetVersion(MB_TOOLS_PLUGIN_ID)
+
+local duplicatedCompilerIndexes = {}
+
 local overallStartTime = os.clock()
 
 if fs.isDir(OUTPUT_DIRECTORY) then
 	local outputRemoveStartTime = os.clock()
-	for _, file in fs.readDir(OUTPUT_DIRECTORY) do
-		local path = `{OUTPUT_DIRECTORY}/{file}`
-		if fs.isFile(path) then
-			fs.removeFile(path)
-		else
-			fs.readDir(path)
-		end
-	end
+	removeFile(OUTPUT_DIRECTORY)
 	local outputRemoveEndTime = os.clock()
 
 	output
@@ -126,27 +127,22 @@ end
 
 local deduplicateStartTime = os.clock()
 for compilerName, compilerGroup in duplicatedCompilerIndexes do
+	local renamingOffset = 0
+
 	local firstCompiler = compilerGroup[1]
 	local directory = `{OUTPUT_DIRECTORY}/{export.getPath(firstCompiler.Object, firstCompiler.Name)}`
-	local offset = 0
 
 	for index = 2, #compilerGroup do
 		local otherCompiler = compilerGroup[index]
-		local otherName, otherObject = otherCompiler.Name, otherCompiler.Object
-
-		local otherDirectory = `{OUTPUT_DIRECTORY}/{export.getPath(otherObject, otherName)}`
+		local otherCompilerObject = otherCompiler.Object
+		local otherDirectory = `{OUTPUT_DIRECTORY}/{export.getPath(otherCompilerObject, otherCompiler.Name)}`
 
 		if export.compare(directory, otherDirectory) then
-			if fs.isDir(otherDirectory) then
-				fs.removeDir(otherDirectory)
-			elseif fs.isFile(otherDirectory) then
-				fs.removeFile(otherDirectory)
-			end
-
-			offset += 1
-		elseif offset > 0 then
-			local offsettedName = applyIndexToName(compilerName, index - offset)
-			local targetDirectory = `{OUTPUT_DIRECTORY}/{export.getPath(otherObject, offsettedName)}`
+			removeFile(otherDirectory)
+			renamingOffset += 1
+		elseif renamingOffset > 0 then
+			local offsettedName = applyIndexToName(compilerName, index - renamingOffset)
+			local targetDirectory = `{OUTPUT_DIRECTORY}/{export.getPath(otherCompilerObject, offsettedName)}`
 
 			if not fs.isDir(targetDirectory) and not fs.isFile(targetDirectory) then
 				fs.move(otherDirectory, targetDirectory)
