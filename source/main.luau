@@ -127,7 +127,7 @@ end
 
 local deduplicateStartTime = os.clock()
 for compilerName, compilerGroup in duplicatedCompilerIndexes do
-	local renamingOffset = 0
+	local renamingOffset = 1
 
 	local firstCompiler = compilerGroup[1]
 	local directory = `{OUTPUT_DIRECTORY}/{export.getPath(firstCompiler.Object, firstCompiler.Name)}`
@@ -140,7 +140,7 @@ for compilerName, compilerGroup in duplicatedCompilerIndexes do
 		if export.compare(directory, otherDirectory) then
 			removeFile(otherDirectory)
 			renamingOffset += 1
-		elseif renamingOffset > 0 then
+		elseif renamingOffset > 1 then
 			local offsettedName = applyIndexToName(compilerName, index - renamingOffset)
 			local targetDirectory = `{OUTPUT_DIRECTORY}/{export.getPath(otherCompilerObject, offsettedName)}`
 
