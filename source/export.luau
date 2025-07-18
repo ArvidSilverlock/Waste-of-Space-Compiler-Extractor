@@ -1,6 +1,5 @@
 local fs = require("@lune/fs")
 local roblox = require("@lune/roblox")
-local serde = require("@lune/serde")
 
 local EXTENSIONS = {
 	client = ".client.luau",
