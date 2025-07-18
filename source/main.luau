@@ -1,5 +1,5 @@
 local MB_TOOLS_PLUGIN_ID = 6724254977
-local OLDEST_SUPPORTED_VERSION = 36 -- oldest model version with `Compilers` folder
+local OLDEST_SUPPORTED_VERSION = 0 -- oldest model version with `Compilers` folder
 local OUTPUT_DIRECTORY = "output"
 
 local fs = require("@lune/fs")
@@ -33,7 +33,14 @@ local overallStartTime = os.clock()
 
 if fs.isDir(OUTPUT_DIRECTORY) then
 	local outputRemoveStartTime = os.clock()
-	fs.removeDir(OUTPUT_DIRECTORY)
+	for _, file in fs.readDir(OUTPUT_DIRECTORY) do
+		local path = `{OUTPUT_DIRECTORY}/{file}`
+		if fs.isFile(path) then
+			fs.removeFile(path)
+		else
+			fs.readDir(path)
+		end
+	end
 	local outputRemoveEndTime = os.clock()
 
 	output
@@ -42,23 +49,33 @@ if fs.isDir(OUTPUT_DIRECTORY) then
 		.write(" to ")
 		.wrap("purple", "remove")
 		.write(" existing output.\n\n")
+else
+	fs.writeDir(OUTPUT_DIRECTORY)
 end
 
 for index = OLDEST_SUPPORTED_VERSION, latestAssetVersion do
-	local versionText = stdio.color("yellow") .. stdio.style("bold") .. "v" .. index .. stdio.style("reset")
+	local versionText = stdio.color("yellow") .. stdio.style("bold") .. index .. stdio.style("reset")
 
 	local modelRetrieveStartTime = os.clock()
-	local modelSource, didCache = request.retrieveRobloxModelSource(MB_TOOLS_PLUGIN_ID, index)
+	local modelSuccess, modelSource, didCache = request.retrieveRobloxModelSource(MB_TOOLS_PLUGIN_ID, index)
 	local modelRetrieveEndTime = os.clock()
 
-	output
-		.checkmark("It took ")
-		.time(modelRetrieveEndTime - modelRetrieveStartTime)
-		.write(" to ")
-		.wrap("cyan", "retrieve")
-		.write(" model ", versionText, " from the ")
-		.wrap("bold", if didCache then "cache" else "web")
-		.write(".\n")
+	if modelSuccess then
+		output
+			.checkmark("It took ")
+			.time(modelRetrieveEndTime - modelRetrieveStartTime)
+			.write(" to ")
+			.wrap("cyan", "retrieve")
+			.write(" model ", versionText, " from the ")
+			.wrap("bold", if didCache then "cache" else "web")
+			.write(".\n")
+	else
+		output
+			.cross("Failed to retrieve model: ", versionText, ": ")
+			.wrap("red", (modelSource:gsub("^%l+", string.lower)))
+			.write(".\n\n")
+		continue
+	end
 
 	local compilerRetrieveStartTime = os.clock()
 	local compilers = model.getCompilersFromSource(modelSource)
@@ -72,21 +89,22 @@ for index = OLDEST_SUPPORTED_VERSION, latestAssetVersion do
 		.write(" model.\n")
 
 	if not compilers then
-		output.write("\n")
+		output.cross("There are no easily accessible compilers for this version.\n\n")
 		continue
 	end
 
 	for _, compiler in compilers do
+		local compilerName = compiler.Name
 		local outputPath
 
-		local compilerNames = duplicatedCompilerIndexes[compiler.Name]
+		local compilerNames = duplicatedCompilerIndexes[compilerName]
 		if compilerNames then
-			local newCompilerName = applyIndexToName(compiler.Name, #compilerNames + 1)
-			table.insert(compilerNames, newCompilerName)
+			local newCompilerName = applyIndexToName(compilerName, #compilerNames)
+			table.insert(compilerNames, { Object = compiler, Name = newCompilerName })
 			outputPath = `{OUTPUT_DIRECTORY}/{newCompilerName}`
 		else
-			duplicatedCompilerIndexes[compiler.Name] = {}
-			outputPath = `{OUTPUT_DIRECTORY}/{compiler.Name}`
+			duplicatedCompilerIndexes[compilerName] = { { Object = compiler, Name = compilerName } }
+			outputPath = `{OUTPUT_DIRECTORY}/{compilerName}`
 		end
 
 		local compilerSaveStartTime = os.clock()
@@ -108,25 +126,35 @@ end
 
 local deduplicateStartTime = os.clock()
 for compilerName, compilerGroup in duplicatedCompilerIndexes do
-	local directory = `{OUTPUT_DIRECTORY}/{compilerName}`
+	local firstCompiler = compilerGroup[1]
+	local directory = `{OUTPUT_DIRECTORY}/{export.getPath(firstCompiler.Object, firstCompiler.Name)}`
 	local offset = 0
 
-	for index = 1, #compilerGroup do
-		local otherDirectory = `{OUTPUT_DIRECTORY}/{compilerGroup[index]}`
+	for index = 2, #compilerGroup do
+		local otherCompiler = compilerGroup[index]
+		local otherName, otherObject = otherCompiler.Name, otherCompiler.Object
 
-		if export.compareDirectories(directory, otherDirectory) then
-			fs.removeDir(otherDirectory)
-			offset += 1
-		else
-			if offset > 0 then
-				local offsettedName = applyIndexToName(compilerName, index - offset)
-				local targetDirectory = `{OUTPUT_DIRECTORY}/{offsettedName}`
+		local otherDirectory = `{OUTPUT_DIRECTORY}/{export.getPath(otherObject, otherName)}`
 
-				if fs.isDir(targetDirectory) then
-					fs.move(otherDirectory, targetDirectory)
-				end
+		if export.compare(directory, otherDirectory) then
+			if fs.isDir(otherDirectory) then
+				fs.removeDir(otherDirectory)
+			elseif fs.isFile(otherDirectory) then
+				fs.removeFile(otherDirectory)
 			end
 
+			offset += 1
+		elseif offset > 0 then
+			local offsettedName = applyIndexToName(compilerName, index - offset)
+			local targetDirectory = `{OUTPUT_DIRECTORY}/{export.getPath(otherObject, offsettedName)}`
+
+			if not fs.isDir(targetDirectory) and not fs.isFile(targetDirectory) then
+				fs.move(otherDirectory, targetDirectory)
+				directory = targetDirectory
+			else
+				directory = otherDirectory
+			end
+		else
 			directory = otherDirectory
 		end
 	end
