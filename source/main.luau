@@ -72,7 +72,7 @@ for index = OLDEST_SUPPORTED_VERSION, latestAssetVersion do
 			.write(".\n")
 	else
 		output
-			.cross("Failed to retrieve model: ", versionText, ": ")
+			.crossmark("Failed to retrieve model: ", versionText, ": ")
 			.wrap("red", (modelSource:gsub("^%l+", string.lower)))
 			.write(".\n\n")
 		continue
@@ -90,7 +90,7 @@ for index = OLDEST_SUPPORTED_VERSION, latestAssetVersion do
 		.write(" model.\n")
 
 	if not compilers then
-		output.cross("There are no easily accessible compilers for this version.\n\n")
+		output.crossmark("There are no easily accessible compilers for this version.\n\n")
 		continue
 	end
 
@@ -138,6 +138,7 @@ for compilerName, compilerGroup in duplicatedCompilerIndexes do
 		local otherDirectory = `{OUTPUT_DIRECTORY}/{export.getPath(otherCompilerObject, otherCompiler.Name)}`
 
 		if export.compare(directory, otherDirectory) then
+			output.crossmark("Removed duplicate ").wrap("bold", otherCompiler.Name).write(".\n")
 			removeFile(otherDirectory)
 			renamingOffset += 1
 		elseif renamingOffset > 1 then
@@ -150,7 +151,14 @@ for compilerName, compilerGroup in duplicatedCompilerIndexes do
 			else
 				directory = otherDirectory
 			end
+			output
+				.checkmark("Moved ")
+				.wrap("bold", otherCompiler.Name)
+				.write(" to ")
+				.wrap("bold", offsettedName)
+				.write(".\n")
 		else
+			output.checkmark("Retained ").wrap("bold", otherCompiler.Name).write(" in place.\n")
 			directory = otherDirectory
 		end
 	end
@@ -158,6 +166,7 @@ end
 local deduplicateEndTime = os.clock()
 
 output
+	.write("\n")
 	.checkmark("It took ")
 	.time(deduplicateEndTime - deduplicateStartTime)
 	.write(" to ")

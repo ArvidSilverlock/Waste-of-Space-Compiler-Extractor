@@ -57,7 +57,7 @@ function output.checkmark(...: any)
 	return output
 end
 
-function output.cross(...: any)
+function output.crossmark(...: any)
 	output.write(CROSS, " ", ...)
 	return output
 end
