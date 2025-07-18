@@ -22,4 +22,4 @@ You create an API key [here](https://create.roblox.com/dashboard/credentials?act
 
 If you feel nervous about providing this repo with an API key, you can search for uses of the `net` library and you will see nothing illicit going on.
 
-You can delete it when you're done.
+You can delete the API key when you're done.
