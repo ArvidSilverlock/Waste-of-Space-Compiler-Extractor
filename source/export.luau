@@ -33,11 +33,7 @@ local function readAllPaths(basePath, fileMap: { [string]: string }, relativePat
 	local currentPath = if relativePath then `{basePath}/{relativePath}` else basePath
 
 	if fs.isFile(currentPath) then
-		local path, fileName, extension = splitPath(currentPath)
-		local subversionRemoved = fileName:match("(.-)%.%d+$") or fileName
-		local reconstructedPath = path .. subversionRemoved .. extension
-
-		fileMap[reconstructedPath] = fs.readFile(currentPath)
+		fileMap[currentPath] = fs.readFile(currentPath)
 	elseif fs.isDir(currentPath) then
 		for _, entry in fs.readDir(currentPath) do
 			local relPath = if relativePath then `{relativePath}/{entry}` else entry
@@ -88,7 +84,9 @@ function export.saveToPath(object: roblox.Instance, filePath: string)
 end
 
 function export.compare(pathA, pathB)
-	if fs.isFile(pathA) ~= fs.isFile(pathB) then
+	if fs.isFile(pathA) and fs.isFile(pathB) then
+		return fs.readFile(pathA) == fs.readFile(pathB)
+	elseif fs.isFile(pathA) ~= fs.isFile(pathB) then
 		return false
 	elseif fs.isDir(pathA) ~= fs.isDir(pathB) then
 		return false
